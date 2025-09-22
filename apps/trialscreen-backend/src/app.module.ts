@@ -4,10 +4,12 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import { UserModule } from './user/user.module';
 import { TrialModule } from './trial/trial.module';
+import { TrpcModule } from './trpc/trpc.module';
+import { RouterService } from './router/router.service';
 
 @Module({
-  imports: [DatabaseModule, UserModule, TrialModule],
+  imports: [DatabaseModule, UserModule, TrialModule, TrpcModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, RouterService],
 })
 export class AppModule {}
