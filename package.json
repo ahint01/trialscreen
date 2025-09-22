@@ -21,6 +21,8 @@
   },
   "homepage": "https://github.com/ahint01/trialscreen#readme",
   "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.1.6",
     "@trpc/server": "^11.5.1",
     "knex": "^3.1.0",
