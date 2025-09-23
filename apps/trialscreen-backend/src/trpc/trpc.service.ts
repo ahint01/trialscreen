@@ -3,6 +3,7 @@ import { initTRPC } from '@trpc/server';
 import type { CreateExpressContextOptions } from '@trpc/server/adapters/express';
 import type { User } from 'src/user/user.interface';
 import { AppRouter } from 'src/router/router.service';
+import type { Request, Response } from 'express'; // <-- Add this import
 
 type AuthenticatedUser = Omit<User, 'password_hash'>;
 
@@ -32,5 +33,13 @@ export class TrpcService {
 
   createCallerFactory(appRouter: AppRouter) {
     return this.trpc.createCallerFactory(appRouter);
+  }
+
+  createContext({ req, res }: { req: Request; res: Response }) {
+    return {
+      req,
+      res,
+      user: null,
+    };
   }
 }
