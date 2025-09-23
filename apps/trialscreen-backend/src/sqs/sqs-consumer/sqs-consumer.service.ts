@@ -16,10 +16,23 @@ interface QueueMessage {
   exclusionCriteria: string[];
 }
 
+// Define the interface for the Gemini API response structure.
+interface GeminiApiResponse {
+  candidates?: {
+    content?: {
+      parts?: {
+        text?: string;
+      }[];
+    };
+  }[];
+}
+
 @Injectable()
 export class SqsConsumerService implements OnModuleInit {
   private sqsClient: SQSClient;
   private queueUrl: string;
+  private geminiApiUrl: string =
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=';
 
   constructor(private configService: ConfigService) {}
 
@@ -30,13 +43,25 @@ export class SqsConsumerService implements OnModuleInit {
       'AWS_SECRET_ACCESS_KEY',
     );
     const queueUrl = this.configService.get<string>('AWS_SQS_QUEUE_URL');
+    const geminiApiKey = this.configService.get<string>('GEMINI_API_KEY');
 
-    if (!awsRegion || !accessKeyId || !secretAccessKey || !queueUrl) {
+    console.log(
+      'Gemini API Key loaded from .env:',
+      geminiApiKey ? '✅ Key found' : '❌ Key not found',
+    );
+    if (
+      !awsRegion ||
+      !accessKeyId ||
+      !secretAccessKey ||
+      !queueUrl ||
+      !geminiApiKey
+    ) {
       throw new Error(
-        'Missing one or more AWS SQS environment variables. Please check your .env file.',
+        'Missing one or more environment variables. Please check your .env file.',
       );
     }
 
+    console.log(`Gemini API Key starts with: ${geminiApiKey.substring(0, 5)}`);
     this.queueUrl = queueUrl;
     this.sqsClient = new SQSClient({
       region: awsRegion,
@@ -100,8 +125,7 @@ export class SqsConsumerService implements OnModuleInit {
       console.log('✅ PDF parsing completed successfully.');
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const extractedText: string = data.text;
-      // Perform the eligibility checks
-      const eligibilityReport = this.checkEligibility(
+      const eligibilityReport = await this.checkEligibilityWithLLM(
         extractedText,
         messageBody.inclusionCriteria,
         messageBody.exclusionCriteria,
@@ -120,40 +144,89 @@ export class SqsConsumerService implements OnModuleInit {
     console.log('---');
   }
 
-  private checkEligibility(
+  private async checkEligibilityWithLLM(
     text: string,
     inclusionCriteria: string[],
     exclusionCriteria: string[],
-  ): { status: string; details: string[] } {
-    const details: string[] = [];
-    const lowerCaseText = text.toLowerCase();
+  ): Promise<{ status: string; details: string[] }> {
+    const prompt = `
+      You are a clinical trial screening assistant. Given a patient's medical record and a set of inclusion and exclusion criteria, your task is to determine the patient's eligibility for a clinical trial.
 
-    // Check inclusion criteria
-    for (const criterion of inclusionCriteria) {
-      const lowerCaseCriterion = criterion.toLowerCase();
-      if (!lowerCaseText.includes(lowerCaseCriterion)) {
-        details.push(`❌ MISMATCH: Missing inclusion criterion "${criterion}"`);
-        return { status: 'INELIGIBLE', details };
-      } else {
-        details.push(`✅ MATCH: Found inclusion criterion "${criterion}"`);
+      Perform the following checks:
+      1. Go through each item in the inclusion criteria. If the patient record matches the criterion, it's a "MATCH". If not, it's a "MISMATCH".
+      2. If all inclusion criteria are matched, go through each item in the exclusion criteria. If the patient record contains an exclusion criterion, it's an "EXCLUSION". If not, it's a "NO EXCLUSION".
+
+      You must provide a final status and a detailed breakdown of each check.
+
+      Patient Medical Record:
+      ${text}
+
+      Inclusion Criteria:
+      ${inclusionCriteria.join(', ')}
+
+      Exclusion Criteria:
+      ${exclusionCriteria.join(', ')}
+
+      Provide your response as a JSON object with the following structure:
+      {
+        "status": "ELIGIBLE" or "INELIGIBLE",
+        "details": [
+          "string detailing each check (e.g., '✅ MATCH: Found inclusion criterion...')"
+        ]
       }
-    }
+    `;
 
-    // Check exclusion criteria
-    for (const criterion of exclusionCriteria) {
-      const lowerCaseCriterion = criterion.toLowerCase();
-      if (lowerCaseText.includes(lowerCaseCriterion)) {
-        details.push(`❌ EXCLUSION: Found exclusion criterion "${criterion}"`);
-        return { status: 'INELIGIBLE', details };
-      } else {
-        details.push(
-          `✅ NO EXCLUSION: Did not find exclusion criterion "${criterion}"`,
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+      },
+    };
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+    try {
+      const response: Response = await fetch(this.geminiApiUrl + apiKey, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response || !response.ok) {
+        throw new Error(
+          `HTTP error! status: ${response ? response.status : 'unknown'}`,
         );
       }
-    }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const jsonResponse: GeminiApiResponse = await response.json();
+      const rawJsonString =
+        jsonResponse?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    details.push('🎉 ELIGIBLE: All criteria met.');
-    return { status: 'ELIGIBLE', details };
+      if (!rawJsonString) {
+        return {
+          status: 'ERROR',
+          details: ['LLM response was empty or malformed.'],
+        };
+      }
+      // The API may return JSON wrapped in a markdown code block, so we strip it.
+      const cleanedJsonString = rawJsonString
+        .replace(/```json\n|```/g, '')
+        .trim();
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const parsedResponse: { status: string; details: string[] } =
+        JSON.parse(cleanedJsonString);
+      return parsedResponse;
+    } catch (error) {
+      console.error('Error calling Gemini API:', error);
+      return {
+        status: 'ERROR',
+        details: [
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          `Failed to check eligibility using LLM. Error: ${error.message}`,
+        ],
+      };
+    }
   }
 
   private async deleteMessage(message: Message) {
