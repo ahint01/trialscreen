@@ -5,12 +5,13 @@ import { DatabaseModule } from './database/database.module';
 import { UserModule } from './user/user.module';
 import { TrialModule } from './trial/trial.module';
 import { TrpcModule } from './trpc/trpc.module';
-import { RouterService } from './router/router.service';
 import { AuthModule } from './auth/auth.module';
+import { DataingestionModule } from './dataingestion/dataingestion.module';
+import { DocumentIngestionModule } from './document-ingestion/document-ingestion.module';
 
 @Module({
-  imports: [DatabaseModule, UserModule, TrialModule, TrpcModule, AuthModule],
+  imports: [DatabaseModule, UserModule, TrialModule, TrpcModule, AuthModule, DataingestionModule, DocumentIngestionModule],
   controllers: [AppController],
-  providers: [AppService, RouterService],
+  providers: [AppService],
 })
 export class AppModule {}

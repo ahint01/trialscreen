@@ -4,7 +4,6 @@ import { User } from 'src/user/user.interface';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 
-// Define a type for the user object after validation
 type AuthenticatedUser = Omit<User, 'password_hash'>;
 
 @Injectable()
