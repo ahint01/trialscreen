@@ -7,9 +7,14 @@ import {
   Message,
 } from '@aws-sdk/client-sqs';
 import pdf from 'pdf-parse';
+import {
+  EligibilityService,
+  EligibilityReport,
+} from '../../eligibility/eligibility.service';
 
 // Define the interface for the message body we are expecting from the queue.
 interface QueueMessage {
+  jobId: string; // The new jobId
   fileBuffer: string;
   fileName: string;
   inclusionCriteria: string[];
@@ -34,7 +39,10 @@ export class SqsConsumerService implements OnModuleInit {
   private geminiApiUrl: string =
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=';
 
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private configService: ConfigService,
+    private eligibilityService: EligibilityService,
+  ) {}
 
   onModuleInit() {
     const awsRegion = this.configService.get<string>('AWS_REGION');
@@ -44,11 +52,6 @@ export class SqsConsumerService implements OnModuleInit {
     );
     const queueUrl = this.configService.get<string>('AWS_SQS_QUEUE_URL');
     const geminiApiKey = this.configService.get<string>('GEMINI_API_KEY');
-
-    console.log(
-      'Gemini API Key loaded from .env:',
-      geminiApiKey ? '✅ Key found' : '❌ Key not found',
-    );
     if (
       !awsRegion ||
       !accessKeyId ||
@@ -92,7 +95,7 @@ export class SqsConsumerService implements OnModuleInit {
       const { Messages } = await this.sqsClient.send(command);
 
       if (Messages && Messages.length > 0) {
-        console.log(`✅ Received ${Messages.length} message(s) from SQS.`);
+        console.log(`Received ${Messages.length} message(s) from SQS.`);
         for (const message of Messages) {
           await this.processMessage(message);
         }
@@ -100,7 +103,7 @@ export class SqsConsumerService implements OnModuleInit {
         console.log('No messages available in the queue.');
       }
     } catch (error) {
-      console.error('❌ Error polling SQS queue:', error);
+      console.error('Error polling SQS queue:', error);
     }
   }
 
@@ -116,26 +119,37 @@ export class SqsConsumerService implements OnModuleInit {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const messageBody: QueueMessage = JSON.parse(message.Body);
     console.log('Message Content:', messageBody);
+    const { jobId } = messageBody;
 
     try {
       const buffer = Buffer.from(messageBody.fileBuffer, 'base64');
-      console.log('✅ Converted base64 string to buffer.');
+      console.log('Converted base64 string to buffer.');
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
       const data = await pdf(buffer);
-      console.log('✅ PDF parsing completed successfully.');
+      console.log('PDF parsing completed successfully.');
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const extractedText: string = data.text;
-      const eligibilityReport = await this.checkEligibilityWithLLM(
-        extractedText,
-        messageBody.inclusionCriteria,
-        messageBody.exclusionCriteria,
-      );
+      const eligibilityReport: EligibilityReport =
+        await this.checkEligibilityWithLLM(
+          extractedText,
+          messageBody.inclusionCriteria,
+          messageBody.exclusionCriteria,
+        );
 
       console.log('--- Eligibility Report ---');
       console.log(eligibilityReport);
       console.log('--------------------------');
+
+      // Update the job status to 'completed' with the final report
+      this.eligibilityService.updateJobStatus(
+        jobId,
+        'completed',
+        eligibilityReport,
+      );
     } catch (error) {
-      console.error('❌ Failed to process PDF:', error);
+      console.error('Failed to process PDF:', error);
+      // Update the job status to 'failed' if an error occurs
+      this.eligibilityService.updateJobStatus(jobId, 'failed');
     }
 
     await this.deleteMessage(message);
@@ -144,11 +158,12 @@ export class SqsConsumerService implements OnModuleInit {
     console.log('---');
   }
 
+  // Updated to return a Promise of EligibilityReport
   private async checkEligibilityWithLLM(
     text: string,
     inclusionCriteria: string[],
     exclusionCriteria: string[],
-  ): Promise<{ status: string; details: string[] }> {
+  ): Promise<EligibilityReport> {
     const prompt = `
       You are a clinical trial screening assistant. Given a patient's medical record and a set of inclusion and exclusion criteria, your task is to determine the patient's eligibility for a clinical trial.
 
@@ -171,7 +186,7 @@ export class SqsConsumerService implements OnModuleInit {
       {
         "status": "ELIGIBLE" or "INELIGIBLE",
         "details": [
-          "string detailing each check (e.g., '✅ MATCH: Found inclusion criterion...')"
+          "string detailing each check (e.g., 'MATCH: Found inclusion criterion...')"
         ]
       }
     `;
@@ -206,16 +221,15 @@ export class SqsConsumerService implements OnModuleInit {
         return {
           status: 'ERROR',
           details: ['LLM response was empty or malformed.'],
-        };
+        } as EligibilityReport; // Cast to the correct type
       }
       // The API may return JSON wrapped in a markdown code block, so we strip it.
       const cleanedJsonString = rawJsonString
         .replace(/```json\n|```/g, '')
         .trim();
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const parsedResponse: { status: string; details: string[] } =
-        JSON.parse(cleanedJsonString);
+      const parsedResponse: EligibilityReport = JSON.parse(
+        cleanedJsonString,
+      ) as EligibilityReport;
       return parsedResponse;
     } catch (error) {
       console.error('Error calling Gemini API:', error);
@@ -225,7 +239,7 @@ export class SqsConsumerService implements OnModuleInit {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           `Failed to check eligibility using LLM. Error: ${error.message}`,
         ],
-      };
+      } as EligibilityReport; // Cast to the correct type
     }
   }
 
@@ -238,7 +252,7 @@ export class SqsConsumerService implements OnModuleInit {
 
       await this.sqsClient.send(command);
     } catch (error) {
-      console.error('❌ Error deleting message from SQS:', error);
+      console.error('Error deleting message from SQS:', error);
     }
   }
 }

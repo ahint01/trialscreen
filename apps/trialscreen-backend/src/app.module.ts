@@ -9,6 +9,8 @@ import { AuthModule } from './auth/auth.module';
 import { DocumentIngestionModule } from './document-ingestion/document-ingestion.module';
 import { SqsModule } from './sqs/sqs.module';
 import { ConfigModule } from '@nestjs/config';
+import { EligibilityModule } from './eligibility/eligibility.module';
+import { SqsConsumerModule } from './sqs/sqs-consumer/sqs-consumer.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { ConfigModule } from '@nestjs/config';
     AuthModule,
     DocumentIngestionModule,
     SqsModule,
+    EligibilityModule,
+    SqsConsumerModule,
   ],
   controllers: [AppController],
   providers: [AppService],

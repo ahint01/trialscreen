@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { SqsConsumerModule } from './sqs-consumer/sqs-consumer.module';
+import { EligibilityModule } from '../eligibility/eligibility.module';
 import { SqsService } from './sqs.service';
-import { SqsConsumerService } from './sqs-consumer/sqs-consumer.service';
 
 @Module({
-  imports: [ConfigModule],
-  providers: [SqsService, SqsConsumerService],
+  imports: [EligibilityModule, SqsConsumerModule],
+  providers: [SqsService],
   exports: [SqsService],
 })
 export class SqsModule {}
