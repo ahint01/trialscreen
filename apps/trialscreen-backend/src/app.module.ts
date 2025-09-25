@@ -1,31 +1,19 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { DatabaseModule } from './database/database.module';
+import { ConfigModule } from '@nestjs/config';
 import { UserModule } from './user/user.module';
+import { AuthModule } from './auth/auth.module';
 import { TrialModule } from './trial/trial.module';
 import { TrpcModule } from './trpc/trpc.module';
-import { AuthModule } from './auth/auth.module';
-import { DocumentIngestionModule } from './document-ingestion/document-ingestion.module';
-import { SqsModule } from './sqs/sqs.module';
-import { ConfigModule } from '@nestjs/config';
-import { EligibilityModule } from './eligibility/eligibility.module';
-import { SqsConsumerModule } from './sqs/sqs-consumer/sqs-consumer.module';
+import { RouterService } from './router/router.service';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    DatabaseModule,
-    UserModule,
-    TrialModule,
+    ConfigModule.forRoot(),
     TrpcModule,
+    UserModule,
     AuthModule,
-    DocumentIngestionModule,
-    SqsModule,
-    EligibilityModule,
-    SqsConsumerModule,
+    TrialModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  providers: [RouterService],
 })
 export class AppModule {}

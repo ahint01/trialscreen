@@ -5,7 +5,8 @@ import config from '../../knexconfig';
 const knexProvider = {
   provide: 'KNEX_CONNECTION',
   useFactory: () => {
-    return Knex(config);
+    const environment = process.env.NODE_ENV || 'development';
+    return Knex(config[environment]);
   },
 };
 

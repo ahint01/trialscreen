@@ -1,34 +1,33 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { TrpcService } from 'src/trpc/trpc.service';
 import { UserService } from 'src/user/user.service';
 import { TrialService } from 'src/trial/trial.service';
+import { AuthService } from 'src/auth/auth.service';
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { CreateUserDto } from 'src/user/user.interface';
 import { Trial } from 'src/trial/trial.interface';
-import { AuthService } from 'src/auth/auth.service';
-import { TRPCError } from '@trpc/server';
 
 @Injectable()
-export class RouterService implements OnModuleInit {
-  public appRouter: any;
+export class RouterService {
+  public readonly appRouter;
 
   constructor(
     private readonly trpc: TrpcService,
     private readonly userService: UserService,
     private readonly trialService: TrialService,
     private readonly authService: AuthService,
-  ) {}
-
-  onModuleInit() {
+  ) {
     const authRouter = this.trpc.router({
-      register: this.trpc.procedure
+      signup: this.trpc.procedure
         .input(z.object({ email: z.string().email(), password: z.string() }))
         .mutation(async ({ input }) => {
           const newUser: CreateUserDto = {
             email: input.email,
             password: input.password,
           };
-          return await this.userService.create(newUser);
+          const createdUser = await this.userService.create(newUser);
+          return this.authService.login(createdUser);
         }),
       login: this.trpc.procedure
         .input(z.object({ email: z.string().email(), password: z.string() }))
@@ -65,21 +64,22 @@ export class RouterService implements OnModuleInit {
             exclusion_criteria: z.array(z.string()),
           }),
         )
-        .mutation(async ({ input }) => {
-          const createdTrial: Trial = await this.trialService.create(input);
+        .mutation(async ({ input, ctx }) => {
+          const createdTrial: Trial = await this.trialService.create({
+            ...input,
+            user_id: ctx.user.id,
+          });
           return createdTrial;
         }),
-      getAll: this.trpc.procedure.query(async () => {
-        return await this.trialService.getAll();
+      findAll: this.trpc.protectedProcedure.query(async ({ ctx }) => {
+        return await this.trialService.findAll(ctx.user.id);
       }),
     });
 
     this.appRouter = this.trpc.router({
-      auth: authRouter,
-      user: userRouter,
-      trial: trialRouter,
+      authRouter: authRouter,
+      userRouter: userRouter,
+      trialRouter: trialRouter,
     });
   }
 }
-
-export type AppRouter = ReturnType<typeof TrpcService.prototype.router>;
