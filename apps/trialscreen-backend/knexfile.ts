@@ -10,7 +10,7 @@ const config: { [key: string]: Knex.Config } = {
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
+      database: process.env.DB_DATABASE, // <--- Corrected variable name
       port: Number(process.env.DB_PORT),
     },
     migrations: {
@@ -27,7 +27,7 @@ const config: { [key: string]: Knex.Config } = {
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
+      database: process.env.DB_DATABASE, // <--- Corrected variable name
       port: Number(process.env.DB_PORT),
     },
     migrations: {

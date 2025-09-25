@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserService } from 'src/user/user.service';
-import { User } from 'src/user/user.interface';
+import { type User } from 'src/user/user.interface';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 
@@ -35,5 +35,19 @@ export class AuthService {
     return {
       access_token: this.jwtService.sign(payload),
     };
+  }
+
+  // New method to validate the token
+  validateToken(token: string): AuthenticatedUser | null {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const payload = this.jwtService.verify(token);
+      // The `sub` property is the user ID from our login payload.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      return { id: payload.sub, email: payload.email, ...payload };
+    } catch (error) {
+      console.error('JWT validation error:', error);
+      throw new UnauthorizedException('Invalid token');
+    }
   }
 }

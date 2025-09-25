@@ -1,6 +1,6 @@
 import { createTRPCReact } from '@trpc/react-query';
 import { httpBatchLink } from '@trpc/client';
-import { AppRouter } from '@shared/app-router'
+import { type AppRouter } from '@trialscreen/shared'
 
 // This is the file that needs to be updated. It will correctly infer the types
 // from your backend router. We are using the correct path to the AppRouter.

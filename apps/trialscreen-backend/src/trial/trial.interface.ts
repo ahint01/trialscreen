@@ -1,6 +1,6 @@
-import { Request } from 'express';
-// We need to import the User interface to define AuthenticatedUser.
-import { User } from 'src/user/user.interface';
+import { type Request } from 'express';
+import { type User } from 'src/user/user.interface';
+import { z } from 'zod';
 
 export interface Trial {
   id: string;
@@ -29,3 +29,12 @@ export type AuthenticatedUser = Omit<User, 'password_hash'>;
 export interface AuthRequest extends Request {
   user: AuthenticatedUser;
 }
+
+// New Zod validation schema for updating a trial
+export const updateTrialSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1, 'Title is required.').optional(),
+  description: z.string().optional(),
+  inclusion_criteria: z.array(z.string()).default([]),
+  exclusion_criteria: z.array(z.string()).default([]),
+});

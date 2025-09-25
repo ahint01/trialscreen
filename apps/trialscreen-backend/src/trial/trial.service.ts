@@ -1,23 +1,27 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import type { Knex } from 'knex';
-import { Trial } from './trial.interface';
+import { type Trial } from './trial.interface';
 
-// Define a type for the raw data as it comes from the database,
-// where the criteria are stored as JSON strings.
+// Define a type for the raw data as it comes from the database.
+// The criteria are actually native arrays, not JSON strings.
 interface RawTrial {
   id: string;
   user_id: string;
   title: string;
   description: string;
-  inclusion_criteria: string; // Stored as a JSON string
-  exclusion_criteria: string; // Stored as a JSON string
+  inclusion_criteria: string[]; // Corrected to reflect the database schema
+  exclusion_criteria: string[]; // Corrected to reflect the database schema
   created_at: Date;
   updated_at: Date;
 }
 
 @Injectable()
 export class TrialService {
-  constructor(@Inject('KNEX_CONNECTION') private readonly knex: Knex) {}
+  public readonly knex: Knex;
+
+  constructor(@Inject('KNEX_CONNECTION') connection: Knex) {
+    this.knex = connection;
+  }
 
   /**
    * Creates a new trial in the database, owned by a specific user.
@@ -31,23 +35,42 @@ export class TrialService {
     inclusion_criteria: string[];
     exclusion_criteria: string[];
   }): Promise<Trial> {
-    const [createdTrial] = await this.knex<RawTrial>('trial')
-      .insert({
-        ...trial,
-        inclusion_criteria: JSON.stringify(trial.inclusion_criteria),
-        exclusion_criteria: JSON.stringify(trial.exclusion_criteria),
-      })
+    try {
+      // Knex will now correctly handle converting the JavaScript array
+      // into a native PostgreSQL array.
+      const [createdTrial] = await this.knex<RawTrial>('trial')
+        .insert({
+          user_id: trial.user_id,
+          title: trial.title,
+          description: trial.description,
+          inclusion_criteria: trial.inclusion_criteria,
+          exclusion_criteria: trial.exclusion_criteria,
+        })
+        .returning('*');
+      return createdTrial;
+    } catch (error) {
+      // Log the specific database error to the console.
+      console.error('Database insertion error in TrialService.create:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates an existing trial.
+   * @param id The ID of the trial to update.
+   * @param updatedTrial The updated trial data.
+   * @returns A promise that resolves to the updated Trial object, or null if not found.
+   */
+  async update(
+    id: string,
+    updatedTrial: Partial<Trial>,
+  ): Promise<Trial | null> {
+    const [result] = await this.knex<RawTrial>('trial')
+      .where({ id })
+      .update(updatedTrial)
       .returning('*');
-    // Convert the raw data back to the expected Trial type
-    return {
-      ...createdTrial,
-      inclusion_criteria: JSON.parse(
-        createdTrial.inclusion_criteria,
-      ) as string[],
-      exclusion_criteria: JSON.parse(
-        createdTrial.exclusion_criteria,
-      ) as string[],
-    };
+
+    return result || null;
   }
 
   /**
@@ -56,16 +79,12 @@ export class TrialService {
    * @returns A promise that resolves to an array of Trial objects.
    */
   async findAll(userId: string): Promise<Trial[]> {
+    // Knex will now return the native array directly from the database.
     const rawTrials = await this.knex<RawTrial>('trial')
       .where({ user_id: userId })
       .select('*');
 
-    // Convert the raw data to the expected Trial type
-    return rawTrials.map((t) => ({
-      ...t,
-      inclusion_criteria: JSON.parse(t.inclusion_criteria) as string[],
-      exclusion_criteria: JSON.parse(t.exclusion_criteria) as string[],
-    }));
+    return rawTrials;
   }
 
   /**
@@ -75,6 +94,7 @@ export class TrialService {
    * @returns A promise that resolves to the Trial object, or null if not found.
    */
   async findOne(id: string, userId: string): Promise<Trial | null> {
+    // Knex will now return the native array directly from the database.
     const rawTrial = await this.knex<RawTrial>('trial')
       .where({ id, user_id: userId })
       .first();
@@ -82,12 +102,6 @@ export class TrialService {
     if (!rawTrial) {
       return null;
     }
-
-    // Convert the raw data to the expected Trial type
-    return {
-      ...rawTrial,
-      inclusion_criteria: JSON.parse(rawTrial.inclusion_criteria) as string[],
-      exclusion_criteria: JSON.parse(rawTrial.exclusion_criteria) as string[],
-    };
+    return rawTrial;
   }
 }

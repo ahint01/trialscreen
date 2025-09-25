@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import SQS from 'aws-sdk/clients/sqs';
+// Using the modern AWS SDK client implementation
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { v4 as uuidv4 } from 'uuid';
 
 // Define the shape of the data we'll store in the cache
@@ -25,7 +26,7 @@ interface FrontendPayload {
 
 @Injectable()
 export class EligibilityService {
-  private readonly sqs: SQS;
+  private readonly sqsClient: SQSClient;
   private readonly eligibilityJobs = new Map<string, JobData>();
   private readonly SQS_QUEUE_URL: string;
 
@@ -42,7 +43,7 @@ export class EligibilityService {
     }
 
     this.SQS_QUEUE_URL = queueUrl;
-    this.sqs = new SQS({
+    this.sqsClient = new SQSClient({
       region: region,
       credentials: {
         accessKeyId: accessKeyId,
@@ -59,19 +60,20 @@ export class EligibilityService {
 
     this.eligibilityJobs.set(jobId, { status: 'processing' });
 
-    // By typing the input payload, we can now safely use the spread operator
+    // Ensure the jobId is included in the message for the consumer
     const sqsPayload = {
       ...payload,
       jobId,
     };
 
-    const params: SQS.SendMessageRequest = {
-      MessageBody: JSON.stringify(sqsPayload),
+    const command = new SendMessageCommand({
       QueueUrl: this.SQS_QUEUE_URL,
-    };
+      MessageBody: JSON.stringify(sqsPayload),
+    });
 
     try {
-      await this.sqs.sendMessage(params).promise();
+      // Send the command using the modern client
+      await this.sqsClient.send(command);
       return { jobId };
     } catch (error: any) {
       console.error('Error sending message to SQS:', error);
@@ -85,8 +87,7 @@ export class EligibilityService {
     return this.eligibilityJobs.get(jobId);
   }
 
-  // This method needs to be called by your SQS consumer
-  // to update the status of the job once it's complete.
+  // This method is called by your SQS consumer to update the status.
   updateJobStatus(
     jobId: string,
     status: 'completed' | 'failed',

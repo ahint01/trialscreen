@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { trpc } from '../utils/trpc';
 import { z } from 'zod';
-
-// Define the expected shape of the data returned from the backend
-interface SignupResult {
-  access_token: string;
-}
+import { TRPCClientError } from '@trpc/client';
 
 // Define the shape of the props for the Signup component
 interface SignupProps {
@@ -25,35 +20,42 @@ const Signup = ({ onSignupSuccess, onToggleView }: SignupProps) => {
   const [password, setPassword] = useState('');
   const [signupError, setSignupError] = useState<string | null>(null);
 
-  const signupMutation = useMutation({
-    mutationFn: async (credentials: z.infer<typeof signupSchema>) => {
-      // Correctly call the 'signup' procedure from the 'authRouter'
-      return trpc.authRouter.signup.mutate(credentials);
-    },
+  // Use the tRPC-generated useMutation hook directly.
+  const { mutateAsync, status } = trpc.authRouter.signup.useMutation({
     onSuccess: (data) => {
-      // Correctly access the 'access_token' property returned by the backend
-      const { access_token } = data as SignupResult;
-      localStorage.setItem('token', access_token);
+      localStorage.setItem('token', data.access_token);
       onSignupSuccess();
     },
-    onError: (error: any) => {
-      setSignupError(error.message);
+    onError: (error) => {
+      // Use the TRPCError type for better error handling
+      if (error instanceof TRPCClientError) {
+        setSignupError(error.message);
+      } else {
+        setSignupError('An unknown error occurred.');
+      }
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignupError(null);
 
     try {
       // Validate inputs with Zod before making the API call
-      signupSchema.parse({ email, password });
-      signupMutation.mutate({ email, password });
+      const credentials = signupSchema.parse({ email, password });
+      
+      // Call mutateAsync directly on the hook's return value
+      await mutateAsync(credentials);
+
     } catch (e) {
       if (e instanceof z.ZodError) {
-        setSignupError(e.errors[0].message);
+        // Fixes TS2339: Property 'errors' does not exist
+        // The correct property is 'issues' on a ZodError object
+        setSignupError(e.issues[0].message);
+      } else if (e instanceof TRPCClientError){
+        setSignupError(e.message)
       } else {
-        setSignupError('An unexpected error occurred.');
+        setSignupError('An unexpected error occurred during validation.');
       }
     }
   };
@@ -91,9 +93,9 @@ const Signup = ({ onSignupSuccess, onToggleView }: SignupProps) => {
           <button
             type="submit"
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            disabled={signupMutation.status === 'pending'}
+            disabled={status === 'pending'}
           >
-            {signupMutation.status === 'pending' ? 'Signing Up...' : 'Sign Up'}
+            {status === 'pending' ? 'Signing Up...' : 'Sign Up'}
           </button>
         </form>
         <p className="mt-4 text-center text-sm text-gray-600">

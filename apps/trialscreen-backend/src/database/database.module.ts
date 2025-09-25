@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import Knex from 'knex';
-import config from '../../knexconfig';
+import config from '../../knexfile';
 
 const knexProvider = {
   provide: 'KNEX_CONNECTION',

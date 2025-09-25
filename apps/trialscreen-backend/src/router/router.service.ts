@@ -5,8 +5,8 @@ import { TrialService } from 'src/trial/trial.service';
 import { AuthService } from 'src/auth/auth.service';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { CreateUserDto } from 'src/user/user.interface';
-import { Trial } from 'src/trial/trial.interface';
+import { type CreateUserDto } from 'src/user/user.interface';
+import { type Trial } from 'src/trial/trial.interface';
 
 @Injectable()
 export class RouterService {
@@ -65,6 +65,12 @@ export class RouterService {
           }),
         )
         .mutation(async ({ input, ctx }) => {
+          if (!ctx.user || !ctx.user.id) {
+            throw new TRPCError({
+              code: 'UNAUTHORIZED',
+              message: 'User not authenticated',
+            });
+          }
           const createdTrial: Trial = await this.trialService.create({
             ...input,
             user_id: ctx.user.id,
@@ -72,8 +78,52 @@ export class RouterService {
           return createdTrial;
         }),
       findAll: this.trpc.protectedProcedure.query(async ({ ctx }) => {
+        if (!ctx.user || !ctx.user.id) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'User not authenticated',
+          });
+        }
         return await this.trialService.findAll(ctx.user.id);
       }),
+      findOne: this.trpc.protectedProcedure
+        .input(z.object({ id: z.string().uuid() }))
+        .query(async ({ input, ctx }) => {
+          if (!ctx.user || !ctx.user.id) {
+            throw new TRPCError({
+              code: 'UNAUTHORIZED',
+              message: 'User not authenticated',
+            });
+          }
+          return await this.trialService.findOne(input.id, ctx.user.id);
+        }),
+      update: this.trpc.protectedProcedure
+        .input(
+          z.object({
+            id: z.string().uuid(),
+            title: z.string().optional(),
+            description: z.string().optional(),
+            inclusion_criteria: z.array(z.string()).optional(),
+            exclusion_criteria: z.array(z.string()).optional(),
+          }),
+        )
+        .mutation(async ({ input, ctx }) => {
+          if (!ctx.user || !ctx.user.id) {
+            throw new TRPCError({
+              code: 'UNAUTHORIZED',
+              message: 'User not authenticated',
+            });
+          }
+          const { id, ...dataToUpdate } = input;
+          const updatedTrial = await this.trialService.update(id, dataToUpdate);
+          if (!updatedTrial) {
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message: 'Trial not found or user is not authorized.',
+            });
+          }
+          return updatedTrial;
+        }),
     });
 
     this.appRouter = this.trpc.router({
