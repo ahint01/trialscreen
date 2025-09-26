@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { trpc } from '../utils/trpc'; 
+import { trpc } from '../utils/trpc';
 import { LucideIcon, Mail, Lock, User, CheckCircle } from 'lucide-react';
-import AppLayout from '../AppLayout'; 
 
 // --- Shared UI Components ---
 
@@ -47,14 +46,14 @@ const Signup: React.FC = () => {
       // Logic to redirect after successful signup
       setSuccess("Account created successfully! Redirecting...");
       setError(null);
-      
+
       setEmail('');
       setPassword('');
       setUsername('');
 
       setTimeout(() => {
         navigate('/dashboard');
-      }, 1000); 
+      }, 1000);
     },
     onError: (err) => {
       setError(err.message || 'An unknown error occurred during signup.');
@@ -73,11 +72,10 @@ const Signup: React.FC = () => {
     }
 
     // FIX: Only pass email and password to match the TypeScript definition
-    signupMutation.mutate({ email, password }); 
+    signupMutation.mutate({ email, password });
   };
 
   return (
-    <AppLayout> 
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-full max-w-md p-8 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl">
           <h2 className="text-3xl font-extrabold text-white text-center mb-6">Create Your Account</h2>
@@ -142,7 +140,6 @@ const Signup: React.FC = () => {
           </p>
         </div>
       </div>
-    </AppLayout>
   );
 };
 
