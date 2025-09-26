@@ -1,11 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Knex } from 'knex';
-import { User, CreateUserDto } from './user.interface';
+import { type User, CreateUserDto } from './user.interface';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UserService {
-  constructor(@Inject('KNEX_CONNECTION') private readonly knex: Knex) {}
+  public readonly knex: Knex;
+  constructor(@Inject('KNEX_CONNECTION') connection: Knex) {
+    this.knex = connection;
+  }
 
   async create(user: CreateUserDto): Promise<User> {
     const password_hash = await bcrypt.hash(user.password, 10);

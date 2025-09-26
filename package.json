@@ -4,7 +4,8 @@
   "description": "clinical trial screening tool",
   "main": "index.js",
   "workspaces": [
-    "apps/*",
+    "apps/trialscreen-backend",
+    "apps/trialscreen-frontend",
     "packages/*"
   ],
   "scripts": {
@@ -28,13 +29,15 @@
     "@nestjs/platform-express": "^11.1.6",
     "@tanstack/react-query": "^5.89.0",
     "@trpc/client": "^11.5.1",
-    "@trpc/server": "^11.5.1",
+    "@trpc/server": "^11.6.0",
     "bcryptjs": "^3.0.2",
     "knex": "^3.1.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "pg": "^8.16.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "zod": "^4.1.11"
   }
 }

@@ -1,35 +1,56 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import Signup from './pages/SignUp';
+import Dashboard from './pages/Dashboard';
+import TrialPage from './pages/TrialPage';
+import HomePage from './pages/HomePage';
+import AppLayout from './AppLayout';
+import { trpc, trpcClient } from './utils/trpc';
 
-function App() {
-  const [count, setCount] = useState(0)
+const queryClient = new QueryClient();
+
+const App = () => {
+  // Use a state variable to handle authentication status (Kept for routing logic)
+  const isAuthenticated = !!localStorage.getItem('token');
+
+  // Removed handleSignupSuccess as it is no longer passed to Signup.tsx
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <QueryClientProvider client={queryClient}>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <BrowserRouter>
+          {/* FIXED: Removed the isAuthenticated prop since AppLayout now fetches it internally */}
+          <AppLayout> 
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<Login />} />
+              {/* FIXED: Removed the onSignupSuccess prop since Signup.tsx handles redirection internally */}
+              <Route path="/signup" element={<Signup />} />
+              
+              {/* Protected routes */}
+              {isAuthenticated ? (
+                <>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/trials/:trialId" element={<TrialPage />} />
+                  {/* Redirect authenticated users who land on public pages back to dashboard */}
+                  <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/signup" element={<Navigate to="/dashboard" replace />} />
+                </>
+              ) : (
+                // Redirects unauthenticated users to the login page for any protected route
+                <Route path="/dashboard" element={<Navigate to="/login" replace />} />
+              )}
+              
+              {/* Fallback route for unhandled paths */}
+              <Route path="*" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/" />} />
+            </Routes>
+          </AppLayout>
+        </BrowserRouter>
+      </trpc.Provider>
+    </QueryClientProvider>
+  );
+};
 
-export default App
+export default App;

@@ -1,0 +1,7 @@
+{
+  "name": "@trialscreen/shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "app-router.ts",
+  "types": "app-router.ts"
+}
