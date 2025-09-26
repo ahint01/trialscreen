@@ -124,6 +124,37 @@ export class RouterService {
           }
           return updatedTrial;
         }),
+
+      // NEW MUTATION: Endpoint to delete a trial
+      deleteTrial: this.trpc.protectedProcedure
+        .input(z.object({ id: z.string().uuid() }))
+        .mutation(async ({ input, ctx }) => {
+          if (!ctx.user || !ctx.user.id) {
+            throw new TRPCError({
+              code: 'UNAUTHORIZED',
+              message: 'User not authenticated',
+            });
+          }
+
+          // Call the TrialService.remove method we defined earlier
+          const deletedCount = await this.trialService.remove(
+            input.id,
+            ctx.user.id,
+          );
+          if (deletedCount === 0) {
+            // This means the trial wasn't found OR the trial didn't belong to the user
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message:
+                'Trial not found or user is not authorized to delete it.',
+            });
+          }
+
+          return {
+            success: true,
+            message: `Trial ID ${input.id} deleted successfully.`,
+          };
+        }),
     });
 
     this.appRouter = this.trpc.router({

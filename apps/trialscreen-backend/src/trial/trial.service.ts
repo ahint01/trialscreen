@@ -104,4 +104,18 @@ export class TrialService {
     }
     return rawTrial;
   }
+
+  /**
+   * Deletes a trial by its ID and user ID.
+   * @param id The ID of the trial to delete.
+   * @param userId The ID of the user who owns the trial.
+   * @returns A promise that resolves to the number of deleted rows (1 if successful).
+   */
+  async remove(id: string, userId: string): Promise<number> {
+    const deletedCount = await this.knex<RawTrial>('trial')
+      .where({ id, user_id: userId }) // CRUCIAL: Ensures only the owner can delete
+      .del();
+
+    return deletedCount;
+  }
 }
