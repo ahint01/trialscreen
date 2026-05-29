@@ -1,43 +1,23 @@
 {
   "name": "trialscreen",
   "version": "1.0.0",
-  "description": "clinical trial screening tool",
-  "main": "index.js",
+  "private": true,
+  "description": "Clinical trial screening tool",
   "workspaces": [
     "apps/trialscreen-backend",
     "apps/trialscreen-frontend",
     "packages/*"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev:backend": "npm run start:dev -w trialscreen-backend",
+    "dev:frontend": "npm run dev -w trialscreen-frontend",
+    "build": "npm run build -w trialscreen-backend && npm run build -w trialscreen-frontend",
+    "db:migrate": "npm run db:migrate -w trialscreen-backend",
+    "test": "npm run test -w trialscreen-backend"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ahint01/trialscreen.git"
   },
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/ahint01/trialscreen/issues"
-  },
-  "homepage": "https://github.com/ahint01/trialscreen#readme",
-  "dependencies": {
-    "@nestjs/common": "^11.0.1",
-    "@nestjs/core": "^11.0.1",
-    "@nestjs/jwt": "^11.0.0",
-    "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.1.6",
-    "@tanstack/react-query": "^5.89.0",
-    "@trpc/client": "^11.5.1",
-    "@trpc/server": "^11.6.0",
-    "bcryptjs": "^3.0.2",
-    "knex": "^3.1.0",
-    "passport": "^0.7.0",
-    "passport-jwt": "^4.0.1",
-    "passport-local": "^1.0.0",
-    "pg": "^8.16.3",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "zod": "^4.1.11"
-  }
+  "license": "ISC"
 }

@@ -1,7 +1,7 @@
 {
   "name": "trialscreen-backend",
   "version": "1.0.0",
-  "description": "<p align=\"center\">   <a href=\"http://nestjs.com/\" target=\"blank\"><img src=\"https://nestjs.com/img/logo-small.svg\" width=\"120\" alt=\"Nest Logo\" /></a> </p>",
+  "description": "Trialscreen API",
   "main": "index.js",
   "directories": {
     "test": "test"
@@ -34,7 +34,6 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.6",
     "@trpc/server": "^11.6.0",
-    "aws-sdk": "^2.1692.0",
     "bcryptjs": "^3.0.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
@@ -56,7 +55,6 @@
     "@nestjs/cli": "^11.0.10",
     "@nestjs/schematics": "^11.0.7",
     "@nestjs/testing": "^11.1.6",
-    "@types/aws-sdk": "^0.0.42",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",

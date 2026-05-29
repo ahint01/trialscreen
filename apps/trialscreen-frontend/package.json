@@ -11,6 +11,7 @@
     "tailwind:init": "npx tailwindcss init -p"
   },
   "dependencies": {
+    "@trialscreen/shared": "*",
     "@tanstack/react-query": "^5.89.0",
     "@trpc/client": "^11.5.1",
     "@trpc/react-query": "^11.5.1",
